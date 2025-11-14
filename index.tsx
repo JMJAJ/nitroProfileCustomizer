@@ -122,6 +122,46 @@ const settings = definePluginSettings({
         type: OptionType.STRING,
         description: "Nameplate static poster image URL (.png)",
         default: ""
+    },
+    enableDisplayNameStyle: {
+        type: OptionType.BOOLEAN,
+        description: "Enable custom display name styling",
+        default: false
+    },
+    displayNameFont: {
+        type: OptionType.SELECT,
+        description: "Display name font",
+        options: [
+            { label: "gg sans (Default)", value: "default", default: true },
+            { label: "Tempo", value: "zillaSlab" },
+            { label: "Sakura", value: "cherryBomb" },
+            { label: "Jellybean", value: "chicle" },
+            { label: "Modern", value: "museoModerno" },
+            { label: "Medieval", value: "neoCastel" },
+            { label: "8Bit", value: "pixelify" },
+            { label: "Vampyre", value: "sinistre" }
+        ]
+    },
+    displayNameEffect: {
+        type: OptionType.SELECT,
+        description: "Display name effect",
+        options: [
+            { label: "Solid", value: "solid", default: true },
+            { label: "Gradient", value: "gradient" },
+            { label: "Neon", value: "neon" },
+            { label: "Toon", value: "toon" },
+            { label: "Pop", value: "pop" }
+        ]
+    },
+    displayNameColor: {
+        type: OptionType.STRING,
+        description: "Display name main color (hex code, e.g., #efeff0)",
+        default: "#efeff0"
+    },
+    displayNameGradientEnd: {
+        type: OptionType.STRING,
+        description: "Display name gradient end color (for gradient effect, hex code)",
+        default: "#5ccfba"
     }
 });
 
@@ -221,6 +261,32 @@ function applyDirectBannerChange(profile: HTMLElement) {
             bannerEl.style.setProperty('background-image', 'none', 'important');
         }
     });
+
+    // Apply banner as background image to the profile container (fullscreen modal only)
+    // Create a backgroundImage__9c3be div like Nitro users have for the fade effect
+    if (settings.store.customBanner?.trim() && profile.classList.contains('user-profile-modal-v2')) {
+        const innerContainer = profile.querySelector('.inner_c0bea0') as HTMLElement;
+        if (innerContainer) {
+            // Check if we already created the background div
+            let backgroundDiv = innerContainer.querySelector('.backgroundImage__9c3be') as HTMLElement;
+
+            if (!backgroundDiv) {
+                backgroundDiv = document.createElement('div');
+                backgroundDiv.className = 'backgroundImage__9c3be';
+                // Insert at the beginning so it's behind everything
+                innerContainer.insertBefore(backgroundDiv, innerContainer.firstChild);
+            }
+
+            // Apply the background to this div instead of the container
+            backgroundDiv.style.setProperty('background-image', `url("${settings.store.customBanner}")`, 'important');
+            backgroundDiv.style.setProperty('background-size', 'cover', 'important');
+            backgroundDiv.style.setProperty('background-position', 'center center', 'important');
+            backgroundDiv.style.setProperty('background-repeat', 'no-repeat', 'important');
+
+            // Remove background from the container itself
+            innerContainer.style.removeProperty('background-image');
+        }
+    }
 }
 
 // Replace avatar and decoration images - need to update both src and inline styles
@@ -318,9 +384,15 @@ function applyProfileEffect(profile: HTMLElement) {
         effectContainer.appendChild(innerDiv);
         effectContainer.setAttribute('data-effect-initialized', 'true');
 
-        const innerContainer = profile.querySelector('.inner_c0bea0');
-        if (innerContainer) {
-            innerContainer.appendChild(effectContainer);
+        // For fullscreen modal, place in .profile__9c3be to cover both header and body
+        const profileContainer = profile.querySelector('.profile__9c3be');
+        if (profileContainer && profile.classList.contains('user-profile-modal-v2')) {
+            profileContainer.appendChild(effectContainer);
+        } else {
+            const innerContainer = profile.querySelector('.inner_c0bea0');
+            if (innerContainer) {
+                innerContainer.appendChild(effectContainer);
+            }
         }
     }
 }
@@ -430,6 +502,71 @@ function generateNameplateCSS(): string {
     return css.join('\n');
 }
 
+// Inject display name styling classes into username elements
+function injectDisplayNameStyles() {
+    if (!settings.store.enableDisplayNameStyle) return;
+
+    const userId = settings.store.userId;
+    const font = settings.store.displayNameFont;
+    const effect = settings.store.displayNameEffect;
+
+    // Profile display names
+    const profileNames = document.querySelectorAll(`.outer_c0bea0:has(.avatar__44b0c[src*="${userId}"]) .nickname__63ed3, .outer_c0bea0:has(.avatar__44b0c[style*="${userId}"]) .nickname__63ed3`);
+    profileNames.forEach(nameEl => {
+        if (nameEl.querySelector('.nicknameWithDisplayNameStyles__63ed3')) return;
+
+        const displayName = nameEl.textContent || "";
+        const container = document.createElement('div');
+        container.className = `container_dfb989 nicknameWithDisplayNameStyles__63ed3 showEffect_dfb989 animated_dfb989 loop_dfb989 inProfile_dfb989 ${font !== "default" ? `dnsFont__89a31 ${font}__89a31` : ""}`;
+
+        const inner = document.createElement('span');
+        inner.className = `innerContainer_dfb989 ${effect}_dfb989`;
+        inner.setAttribute('data-username-with-effects', displayName);
+        inner.textContent = displayName;
+
+        container.appendChild(inner);
+
+        if (effect === "neon") {
+            const glow = document.createElement('span');
+            glow.className = 'glowContainer_dfb989 innerContainer_dfb989 neonGlow_dfb989';
+            glow.setAttribute('aria-hidden', 'true');
+            glow.textContent = displayName;
+            container.appendChild(glow);
+        }
+
+        nameEl.innerHTML = '';
+        nameEl.appendChild(container);
+    });
+
+    // Member list display names
+    const memberNames = document.querySelectorAll(`.member__5d473:has(.avatar__91a9d img[src*="${userId}"]) .username__5d473 .name__5d473, .member__5d473:has(.avatar__91a9d img[style*="${userId}"]) .username__5d473 .name__5d473`);
+    memberNames.forEach(nameEl => {
+        if (nameEl.querySelector('.container_dfb989')) return;
+
+        const displayName = nameEl.textContent?.trim() || "";
+        const container = document.createElement('div');
+        container.className = `container_dfb989 ${font !== "default" ? `dnsFont__89a31 ${font}__89a31` : ""} showEffect_dfb989 loop_dfb989`;
+
+        const inner = document.createElement('span');
+        inner.className = `innerContainer_dfb989 ${effect}_dfb989`;
+        inner.setAttribute('data-username-with-effects', displayName);
+        inner.textContent = displayName;
+
+        container.appendChild(inner);
+
+        if (effect === "neon") {
+            const glow = document.createElement('span');
+            glow.className = 'glowContainer_dfb989 innerContainer_dfb989 neonGlow_dfb989';
+            glow.setAttribute('aria-hidden', 'true');
+            glow.textContent = displayName;
+            container.appendChild(glow);
+        }
+
+        nameEl.innerHTML = '';
+        nameEl.appendChild(container);
+    });
+}
+
 // Inject video backgrounds into nameplates (like those animated Nitro nameplate effects)
 function injectNameplateVideos() {
     if (!settings.store.enableNameplate || !settings.store.nameplateVideo?.trim()) return;
@@ -482,6 +619,117 @@ function injectNameplateVideos() {
         videoContainer.appendChild(video);
         interactive.insertBefore(videoContainer, interactive.firstChild);
     });
+}
+
+function generateDisplayNameCSS(): string {
+    if (!settings.store.enableDisplayNameStyle) return "";
+
+    const css: string[] = [];
+    const userId = settings.store.userId;
+    const font = settings.store.displayNameFont;
+    const effect = settings.store.displayNameEffect;
+    const mainColor = settings.store.displayNameColor;
+    const { r, g, b } = hexToRgb(mainColor);
+
+    // Calculate light and dark variants for effects
+    const light1 = `rgb(${Math.min(r + 40, 255)}, ${Math.min(g + 40, 255)}, ${Math.min(b + 40, 255)})`;
+    const light2 = `rgb(${Math.min(r + 80, 255)}, ${Math.min(g + 80, 255)}, ${Math.min(b + 80, 255)})`;
+    const dark1 = `rgb(${Math.max(r - 80, 0)}, ${Math.max(g - 80, 0)}, ${Math.max(b - 80, 0)})`;
+    const dark2 = `rgb(${Math.max(r - 120, 0)}, ${Math.max(g - 120, 0)}, ${Math.max(b - 120, 0)})`;
+
+    // Profile display name
+    css.push(`
+        .outer_c0bea0:has(.avatar__44b0c[src*="${userId}"]) .nicknameWithDisplayNameStyles__63ed3,
+        .outer_c0bea0:has(.avatar__44b0c[style*="${userId}"]) .nicknameWithDisplayNameStyles__63ed3 {
+            --custom-display-name-styles-main-color: ${mainColor} !important;
+            --custom-display-name-styles-light-1-color: ${light1} !important;
+            --custom-display-name-styles-light-2-color: ${light2} !important;
+            --custom-display-name-styles-dark-1-color: ${dark1} !important;
+            --custom-display-name-styles-dark-2-color: ${dark2} !important;
+            --custom-display-name-styles-wrap: wrap !important;
+            --custom-display-name-styles-font-opacity: 1 !important;
+        }
+    `);
+
+    if (effect === "gradient") {
+        css.push(`
+            .outer_c0bea0:has(.avatar__44b0c[src*="${userId}"]) .nicknameWithDisplayNameStyles__63ed3,
+            .outer_c0bea0:has(.avatar__44b0c[style*="${userId}"]) .nicknameWithDisplayNameStyles__63ed3 {
+                --custom-display-name-styles-gradient-start-color: ${mainColor} !important;
+                --custom-display-name-styles-gradient-end-color: ${settings.store.displayNameGradientEnd} !important;
+            }
+        `);
+    }
+
+    css.push(`
+        .outer_c0bea0:has(.avatar__44b0c[src*="${userId}"]) .nicknameWithDisplayNameStyles__63ed3 .innerContainer_dfb989,
+        .outer_c0bea0:has(.avatar__44b0c[style*="${userId}"]) .nicknameWithDisplayNameStyles__63ed3 .innerContainer_dfb989 {
+            ${font !== "default" ? `font-family: var(--font-display) !important;` : ""}
+        }
+    `);
+
+    if (font !== "default") {
+        css.push(`
+            .outer_c0bea0:has(.avatar__44b0c[src*="${userId}"]) .nicknameWithDisplayNameStyles__63ed3,
+            .outer_c0bea0:has(.avatar__44b0c[style*="${userId}"]) .nicknameWithDisplayNameStyles__63ed3 {
+                font-family: var(--font-display) !important;
+            }
+            .outer_c0bea0:has(.avatar__44b0c[src*="${userId}"]) .nicknameWithDisplayNameStyles__63ed3 .innerContainer_dfb989,
+            .outer_c0bea0:has(.avatar__44b0c[style*="${userId}"]) .nicknameWithDisplayNameStyles__63ed3 .innerContainer_dfb989 {
+                font-family: var(--font-display) !important;
+            }
+        `);
+    }
+
+    // Member list display name
+    css.push(`
+        .member__5d473:has(.avatar__91a9d img[src*="${userId}"]) .container_dfb989,
+        .member__5d473:has(.avatar__91a9d img[style*="${userId}"]) .container_dfb989 {
+            --custom-display-name-styles-main-color: ${mainColor} !important;
+            --custom-display-name-styles-light-1-color: ${light1} !important;
+            --custom-display-name-styles-light-2-color: ${light2} !important;
+            --custom-display-name-styles-dark-1-color: ${dark1} !important;
+            --custom-display-name-styles-dark-2-color: ${dark2} !important;
+            --custom-display-name-styles-wrap: nowrap !important;
+            --custom-display-name-styles-font-opacity: 1 !important;
+        }
+    `);
+
+    if (effect === "gradient") {
+        css.push(`
+            .member__5d473:has(.avatar__91a9d img[src*="${userId}"]) .container_dfb989,
+            .member__5d473:has(.avatar__91a9d img[style*="${userId}"]) .container_dfb989 {
+                --custom-display-name-styles-gradient-start-color: ${mainColor} !important;
+                --custom-display-name-styles-gradient-end-color: ${settings.store.displayNameGradientEnd} !important;
+            }
+        `);
+    }
+
+    // Chat message display name
+    css.push(`
+        .message__5126c[data-author-id="${userId}"] .username_c19a55 .container_dfb989,
+        .wrapper_c19a55[data-author-id="${userId}"] .username_c19a55 .container_dfb989 {
+            --custom-display-name-styles-main-color: ${mainColor} !important;
+            --custom-display-name-styles-light-1-color: ${light1} !important;
+            --custom-display-name-styles-light-2-color: ${light2} !important;
+            --custom-display-name-styles-dark-1-color: ${dark1} !important;
+            --custom-display-name-styles-dark-2-color: ${dark2} !important;
+            --custom-display-name-styles-wrap: nowrap !important;
+            --custom-display-name-styles-font-opacity: 1 !important;
+        }
+    `);
+
+    if (effect === "gradient") {
+        css.push(`
+            .message__5126c[data-author-id="${userId}"] .username_c19a55 .container_dfb989,
+            .wrapper_c19a55[data-author-id="${userId}"] .username_c19a55 .container_dfb989 {
+                --custom-display-name-styles-gradient-start-color: ${mainColor} !important;
+                --custom-display-name-styles-gradient-end-color: ${settings.store.displayNameGradientEnd} !important;
+            }
+        `);
+    }
+
+    return css.join('\n');
 }
 
 function generateCustomCSS(): string {
@@ -657,6 +905,21 @@ function generateCustomCSS(): string {
         `);
     }
 
+    // Add CSS for the backgroundImage__9c3be fade effect
+    css.push(`
+        ${sel} .backgroundImage__9c3be {
+            position: absolute !important;
+            top: 0 !important;
+            left: 0 !important;
+            right: 0 !important;
+            bottom: 0 !important;
+            z-index: 0 !important;
+            pointer-events: none !important;
+            mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 1) 0%, rgba(0, 0, 0, 0.8) 20%, rgba(0, 0, 0, 0) 60%) !important;
+            -webkit-mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 1) 0%, rgba(0, 0, 0, 0.8) 20%, rgba(0, 0, 0, 0) 60%) !important;
+        }
+    `);
+
     css.push(`
         ${sel} {
             border-radius: 8px !important;
@@ -683,8 +946,10 @@ function applyStyles() {
 
     styleElement = document.createElement('style');
     styleElement.id = 'nitro-profile-customizer';
-    styleElement.textContent = generateCustomCSS() + '\n' + generateNameplateCSS();
+    styleElement.textContent = generateCustomCSS() + '\n' + generateNameplateCSS() + '\n' + generateDisplayNameCSS();
     document.head.appendChild(styleElement);
+
+    injectDisplayNameStyles();
 }
 
 // Watch for profile popups/modals appearing and apply customizations
@@ -716,6 +981,7 @@ function startMonitoring() {
             }
             injectNameplateVideos();
         }
+        injectDisplayNameStyles();
     }, 2000);
 }
 
