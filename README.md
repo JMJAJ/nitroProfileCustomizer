@@ -2,7 +2,7 @@
 
 A Vencord plugin that lets you customize your Discord profile with Nitro-like features without actually having Nitro. All customizations are local and only visible to you.
 
-Btw README.md was made with AI and comments in code were added by AI too to make it easier for anyone reading the code quickly get idea of whats going on.
+Btw README.md was made with AI and comments in code were added by AI too to make it easier for anyone reading the code to quickly get idea of whats going on.
 
 ## Features
 
