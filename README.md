@@ -46,9 +46,12 @@ A Vencord plugin that lets you customize your Discord profile with Nitro-like fe
   - Pop
 - **Custom Colors**: Set main color and gradient end color
 
-<img width="462" height="759" alt="jxint-pop-up" src="https://github.com/user-attachments/assets/54b64682-1a30-438f-a373-0022fd0f31df" />
+## Preview
 
-<img width="1440" height="1200" alt="jxint_full-screen" src="https://github.com/user-attachments/assets/f42a104c-159d-4dd1-82d7-a170c61bc0fb" />
+<div align="center">
+  <img width="350" alt="Profile popup" src="https://github.com/user-attachments/assets/54b64682-1a30-438f-a373-0022fd0f31df" />
+  <img width="500" alt="Full screen profile" src="https://github.com/user-attachments/assets/f42a104c-159d-4dd1-82d7-a170c61bc0fb" />
+</div>
 
 ## Setup
 
